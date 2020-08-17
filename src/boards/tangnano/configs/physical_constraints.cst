@@ -1,0 +1,5 @@
+IO_LOC "clk_i" 35; // clock, 24 Mhz
+IO_LOC "rst_i" 15; // reset button
+IO_LOC "led1"  16; // led green
+IO_LOC "led2"  17; // led blue
+IO_LOC "led3"  18; // led red
