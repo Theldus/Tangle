@@ -8,10 +8,10 @@
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -20,10 +20,26 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# Default rules.
-*.o
-*.vcd
-src/boards/tangnano/gowin_synthesis_pnr.tcl
-src/boards/tangnano/output/
-src/tangle
-src/toolchain/assembler/tas
+CC ?= gcc
+INCLUDE = $(CURDIR)/include
+
+CFLAGS   = -Wall -Wextra
+CFLAGS  += -I $(INCLUDE)
+CFLAGS  += -std=c99 -O3 -march=native
+ARFLAGS  = cru
+LDFLAGS  = -lm
+SRC      = $(wildcard *.c)
+OBJ      = $(SRC:.c=.o)
+
+%.o: %.c
+	$(CC) $< $(CFLAGS) -c -o $@
+
+all: tas
+
+# Main program
+tas: $(OBJ)
+	$(CC) $^ $(CFLAGS) $(LDFLAGS) -o $@
+
+# Clean rule
+clean:
+	@rm -f *.o tas
