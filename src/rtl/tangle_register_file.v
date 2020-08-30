@@ -72,7 +72,7 @@ module register_file
 				/* Prohibits writings in r0. */
 				if (reg1_i != 0) begin
 					registers[reg1_i] <= data_i;
-                end
+				end
 			end
 		end
 	end

@@ -53,8 +53,8 @@ static off_t current_pc;
 static char *src_file;
 
 /* Input/Output files. */
-char *input_file;
-char *output_file;
+static char *input_file;
+static char *output_file;
 
 /* Match flags. */
 #define M_NI  0 /* Unconditionally not increment.     */
