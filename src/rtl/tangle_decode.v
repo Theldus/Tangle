@@ -203,12 +203,13 @@ module decode
 			`TANGLE_OPCODE_ADD,
 			`TANGLE_OPCODE_SUB,
 			`TANGLE_OPCODE_MOV,
+			`TANGLE_OPCODE_MOVHI,
+			`TANGLE_OPCODE_MOVLO,
 			`TANGLE_OPCODE_CMP:
 			begin
 				aluen_o = 1'b1;
 				aluop_o = insn_i[14:11];        //Alu opcode
 				regwe_o = 1'b1;                 //Register write back
-				imm_o   = {11'h0, insn_i[4:0]}; //Unsigned immediate
 
 				/*
 				 * CMP needs to be treated separately from the others, since
@@ -220,28 +221,31 @@ module decode
 				else
 					regwe_o = 1'b0;
 
-				/* Immediate or reg/reg. */
-				if (regsrc_o != 3'b0)
-					insntype_o = `INSN_AMI_REGREG;
-				else
+				/*
+				 * MOVHI and MOVLI, an unfortunatell exception on AMI insns:
+				 *
+				 * Instead of having 5-bit immediate values, MOVHI/LO
+				 * have 8-bit immediate values, which 'breaks' the
+				 * encoding. Anyway, for all intents and purposes, they
+				 * will still be considered as 'AMI' instructions.
+				 */
+				if (insn_i[15:11] == `TANGLE_OPCODE_MOVHI ||
+					insn_i[15:11] == `TANGLE_OPCODE_MOVLO)
+				begin
+					imm_o      = {8'h0, insn_i[7:0]}; // 8-bits unsigned
 					insntype_o = `INSN_AMI_REGIMM;
-			end
-			/*
-			 * MOVHI and MOVLI, an unfortunatell exception on AMI insns:
-			 *
-			 * Instead of having 5-bit immediate values, MOVHI/LO
-			 * have 8-bit immediate values, which 'breaks' the
-			 * encoding. Anyway, for all intents and purposes, they
-			 * will still be considered as 'AMI' instructions.
-			 */
-			`TANGLE_OPCODE_MOVHI,
-			`TANGLE_OPCODE_MOVLO:
-			begin
-				aluen_o    = 1'b1;
-				aluop_o    = insn_i[14:11];
-				regwe_o    = 1'b1;
-				imm_o      = {8'h0, insn_i[7:0]}; //Unsigned immediate
-				insntype_o = `INSN_AMI_REGIMM;
+				end
+
+				/* Anything else. */
+				else begin
+					imm_o = {11'h0, insn_i[4:0]}; // 5-bits unsigned
+
+					/* Immediate or reg/reg. */
+					if (regsrc_o != 3'b0)
+						insntype_o = `INSN_AMI_REGREG;
+					else
+						insntype_o = `INSN_AMI_REGIMM;
+				end
 			end
 
 			/* Conditional jumps. */
@@ -277,17 +281,14 @@ module decode
 			end
 
 			/* Unconditional jumps. */
-			`TANGLE_OPCODE_J: begin
-				if (regdst_o == 3'b0) begin
-					nextpc_o = `INSN_PC_IMM;
-					imm_o = { {8{insn_i[7]}}, insn_i[7:0]};
-				end else begin
-					nextpc_o = `INSN_PC_REG;
+			`TANGLE_OPCODE_J,
+			`TANGLE_OPCODE_JAL:
+			begin
+				if (insn_i[15:11] == `TANGLE_OPCODE_JAL) begin
+					regwe_o = 1'b1;
+					insntype_o = `INSN_BRA_JAL;
 				end
-			end
-			`TANGLE_OPCODE_JAL: begin
-				regwe_o = 1'b1;
-				insntype_o = `INSN_BRA_JAL;
+
 				if (regdst_o == 3'b0) begin
 					nextpc_o = `INSN_PC_IMM;
 					imm_o = { {8{insn_i[7]}}, insn_i[7:0]};
@@ -297,23 +298,21 @@ module decode
 			end
 
 			/* Load. */
-			`TANGLE_OPCODE_LW:
-			begin
-				aluen_o = 1'b1;
-				aluop_o = `ADD;
-				insntype_o = `INSN_MEM_LW;
-				imm_o = { {11{insn_i[4]}}, insn_i[4:0]}; //Signed immediate
-				regwe_o = 1'b1;
-			end
-
-			/* Store. */
+			`TANGLE_OPCODE_LW,
 			`TANGLE_OPCODE_SW:
 			begin
 				aluen_o = 1'b1;
 				aluop_o = `ADD;
-				insntype_o = `INSN_MEM_SW;
-				imm_o  = { {11{insn_i[4]}}, insn_i[4:0]}; //Signed immediate
-				memwe_o = 1'b1;
+
+				if (insn_i[15:11] == `TANGLE_OPCODE_LW) begin
+					insntype_o = `INSN_MEM_LW;
+					regwe_o = 1'b1;
+				end else begin
+					insntype_o = `INSN_MEM_SW;
+					memwe_o = 1'b1;
+				end
+
+				imm_o = { {11{insn_i[4]}}, insn_i[4:0]}; // Signed immediate
 			end
 		endcase
 	end
