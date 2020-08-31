@@ -57,23 +57,34 @@
 		char *name;
 	};
 
-	/* Instruction macros. */
+	/* Instruction macros, setters. */
 	#define INSN_SET_OPCODE(i, o) ((i)->insn |= (((o) & 0x1F) << 11))
 	#define INSN_SET_RD(i, o)     ((i)->insn |= (((o) & 7) << 8))
 	#define INSN_SET_RS(i, o)     ((i)->insn |= (((o) & 7) << 5))
 	#define INSN_SET_IMM5(i, o)   ((i)->insn |= ((o)  & 0x1F))
 	#define INSN_SET_IMM8(i, o)   ((i)->insn |= ((o)  & 0xFF))
+	/* Getters. */
+	#define INSN_GET_OPCODE(i) ((i) >> 11)
 
 	/*
 	 * Ranges.
 	 * Note: MAX_IMM_AMI considers the min negative (signed)
 	 * and max positive (unsigned), because the signal does
 	 * not matter in AMI instructions.
+	 *
+	 * MOVLO and MOVHI instructions are different from the
+	 * other AMI instructions: instead of having 5-bit
+	 * immediate values, MOVHI/LO have 8-bit immediate
+	 * values, which 'breaks' the encoding. Anyway, for all
+	 * intents and purposes, they will still be considered
+	 * as 'AMI' instructions.
 	 */
-	#define MIN_IMM_BRA (-(1 << (IMM_BRA_WIDTH-1)))
-	#define MAX_IMM_BRA ( (1 << (IMM_BRA_WIDTH-1))-1)
-	#define MIN_IMM_AMI (-(1 << (IMM_AMI_WIDTH-1)))
-	#define MAX_IMM_AMI ( (1 << IMM_AMI_WIDTH)-1)
+	#define MIN_IMM_BRA  (-(1 << (IMM_BRA_WIDTH-1)))
+	#define MAX_IMM_BRA  ( (1 << (IMM_BRA_WIDTH-1))-1)
+	#define MIN_IMM_AMI  (-(1 << (IMM_AMI_WIDTH-1)))
+	#define MAX_IMM_AMI  ( (1 << IMM_AMI_WIDTH)-1)
+	#define MIN_LOHI_AMI (-(1 << (IMM_LOHI_WIDTH-1)))
+	#define MAX_LOHI_AMI ( (1 << IMM_LOHI_WIDTH)-1)
 
 	/* Instruction table. */
 	struct insn_tbl
@@ -87,11 +98,12 @@
 	/*
 	 * General configs
 	 */
-	#define BYTE_SIZE    16
-	#define INSN_SIZE    16
-	#define IMM_AMI_WIDTH 5
-	#define IMM_BRA_WIDTH 8
-	#define TOK_SZ       32
+	#define BYTE_SIZE     16
+	#define INSN_SIZE     16
+	#define IMM_AMI_WIDTH  5
+	#define IMM_BRA_WIDTH  8
+	#define IMM_LOHI_WIDTH 8
+	#define TOK_SZ        32
 
 	/*
 	 * Tangle opcodes
@@ -109,31 +121,33 @@
 	/* Arithmetic. */
 	#define OPC_ADD   7
 	#define OPC_SUB   8
-	#define OPC_CMP   10
+	#define OPC_CMP   12
 
 	/* Move. */
 	#define OPC_MOV   9
+	#define OPC_MOVHI 10
+	#define OPC_MOVLO 11
 
 	/* Branch. */
-	#define OPC_JE    11
-	#define OPC_JNE   12
+	#define OPC_JE    13
+	#define OPC_JNE   14
 
-	#define OPC_JGS   13
-	#define OPC_JGU   14
-	#define OPC_JLS   15
-	#define OPC_JLU   16
+	#define OPC_JGS   15
+	#define OPC_JGU   16
+	#define OPC_JLS   17
+	#define OPC_JLU   18
 
-	#define OPC_JGES  17
-	#define OPC_JGEU  18
-	#define OPC_JLES  19
-	#define OPC_JLEU  20
+	#define OPC_JGES  19
+	#define OPC_JGEU  20
+	#define OPC_JLES  21
+	#define OPC_JLEU  22
 
-	#define OPC_J     21
-	#define OPC_JAL   22
+	#define OPC_J     23
+	#define OPC_JAL   24
 
 	/* Memory (Load/Store). */
-	#define OPC_LW    23
-	#define OPC_SW    24
+	#define OPC_LW    25
+	#define OPC_SW    26
 
 	/* Instruction types. */
 	#define INSN_AMI 0 /* ALU/Memory/IO.  */

@@ -73,7 +73,9 @@
 `define ADD   4'b0111
 `define SUB   4'b1000
 `define MOV   4'b1001
-`define CMP   4'b1010
+`define MOVHI 4'b1010
+`define MOVLO 4'b1011
+`define CMP   4'b1100
 
 /* ======== Tangle opcodes ======== */
 
@@ -93,27 +95,29 @@
 
 // Move
 `define TANGLE_OPCODE_MOV   {1'b0, `MOV}
+`define TANGLE_OPCODE_MOVHI {1'b0, `MOVHI}
+`define TANGLE_OPCODE_MOVLO {1'b0, `MOVLO}
 
 // Branch
-`define TANGLE_OPCODE_JE    5'b01011
-`define TANGLE_OPCODE_JNE   5'b01100
+`define TANGLE_OPCODE_JE    5'b01101
+`define TANGLE_OPCODE_JNE   5'b01110
 
-`define TANGLE_OPCODE_JGS   5'b01101
-`define TANGLE_OPCODE_JGU   5'b01110
-`define TANGLE_OPCODE_JLS   5'b01111
-`define TANGLE_OPCODE_JLU   5'b10000
+`define TANGLE_OPCODE_JGS   5'b01111
+`define TANGLE_OPCODE_JGU   5'b10000
+`define TANGLE_OPCODE_JLS   5'b10001
+`define TANGLE_OPCODE_JLU   5'b10010
 
-`define TANGLE_OPCODE_JGES  5'b10001
-`define TANGLE_OPCODE_JGEU  5'b10010
-`define TANGLE_OPCODE_JLES  5'b10011
-`define TANGLE_OPCODE_JLEU  5'b10100
+`define TANGLE_OPCODE_JGES  5'b10011
+`define TANGLE_OPCODE_JGEU  5'b10100
+`define TANGLE_OPCODE_JLES  5'b10101
+`define TANGLE_OPCODE_JLEU  5'b10110
 
-`define TANGLE_OPCODE_J     5'b10101
-`define TANGLE_OPCODE_JAL   5'b10110
+`define TANGLE_OPCODE_J     5'b10111
+`define TANGLE_OPCODE_JAL   5'b11000
 
 // Memory (Load/Store)
-`define TANGLE_OPCODE_LW    5'b10111
-`define TANGLE_OPCODE_SW    5'b11000
+`define TANGLE_OPCODE_LW    5'b11001
+`define TANGLE_OPCODE_SW    5'b11010
 
 /* Instruction Types.
  * AMI = Alu/Mov/IO

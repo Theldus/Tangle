@@ -118,6 +118,12 @@ module alu
 				`MOV: begin
 					data_o = data2_i;
 				end
+				`MOVHI: begin
+					data_o = {data2_i[7:0], 8'h0};
+				end
+				`MOVLO: begin
+					data_o = data1_i | data2_i;
+				end
 			endcase
 		end
 	end

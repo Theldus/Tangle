@@ -441,9 +441,21 @@ static int set_reg(int direction, char **line, struct insn *insn)
 				return (S_ERROR);
 
 			if (direction)
+			{
 				INSN_SET_RD(insn, *(p - 1) - '0');
-			else
+			}
+
+			/*
+			 * MOVHI and MOVLO cannot have a register in the second
+			 * operand, so we want to make sure that first.
+			 */
+			else if (INSN_GET_OPCODE(insn->insn) != OPC_MOVHI &&
+				INSN_GET_OPCODE(insn->insn) != OPC_MOVLO)
+			{
 				INSN_SET_RS(insn, *(p - 1) - '0');
+			}
+			else
+				return (S_ERROR);
 		}
 		else
 			return (S_ERROR);
@@ -513,16 +525,35 @@ static int set_imm(int type, char **line,
 		{
 			imm = read_number(&p, M_NS);
 
-			/* Check if valid number and range. */
-			if (imm == LONG_MAX || imm < MIN_IMM_AMI || imm > MAX_IMM_AMI)
+			/* MOVHI and MOVLO exceptions. */
+			if (INSN_GET_OPCODE(insn->insn) != OPC_MOVHI &&
+				INSN_GET_OPCODE(insn->insn) != OPC_MOVLO)
 			{
-				error("invalid number or out-of-range (expects: %d -- %d)\n",
-					MIN_IMM_AMI, MAX_IMM_AMI);
-				return (S_ERROR);
+				/* Check if valid number and range. */
+				if (imm == LONG_MAX || imm < MIN_IMM_AMI || imm > MAX_IMM_AMI)
+				{
+					error("invalid number or out-of-range (expects: %d -- %d)\n",
+						MIN_IMM_AMI, MAX_IMM_AMI);
+					return (S_ERROR);
+				}
+
+				/* Fill imm. */
+				INSN_SET_IMM5(insn, imm);
 			}
 
-			/* Fill imm. */
-			INSN_SET_IMM5(insn, imm);
+			else
+			{
+				/* Check if valid number and range. */
+				if (imm == LONG_MAX || imm < MIN_LOHI_AMI || imm > MAX_LOHI_AMI)
+				{
+					error("invalid number or out-of-range (expects: %d -- %d)\n",
+						MIN_LOHI_AMI, MAX_LOHI_AMI);
+					return (S_ERROR);
+				}
+
+				/* Fill imm. */
+				INSN_SET_IMM8(insn, imm);
+			}
 		}
 	}
 	else
@@ -607,6 +638,13 @@ static int set_label(int type, char **line,
 
 	else
 	{
+		/* MOVHI and MOVLO do not handle labels at the moment. */
+		if (INSN_GET_OPCODE(insn->insn) == OPC_MOVHI ||
+			INSN_GET_OPCODE(insn->insn) == OPC_MOVLO)
+		{
+			return (0);
+		}
+
 		/* Read label. */
 		if (!read_token(&p, tok, TOK_SZ))
 			return (0);
@@ -951,7 +989,9 @@ static struct insn_tbl insn_tbl[] ={
 	{.name = "cmp", .opcode = OPC_CMP, .type = INSN_AMI, .parser = parse_two_params},
 
 	/* Move. */
-	{.name = "mov", .opcode = OPC_MOV, .type = INSN_AMI, .parser = parse_two_params},
+	{.name = "mov",   .opcode = OPC_MOV,   .type = INSN_AMI, .parser = parse_two_params},
+	{.name = "movhi", .opcode = OPC_MOVHI, .type = INSN_AMI, .parser = parse_two_params},
+	{.name = "movlo", .opcode = OPC_MOVLO, .type = INSN_AMI, .parser = parse_two_params},
 
 	/* Branch. */
 	{.name = "j",   .opcode = OPC_J,   .type = INSN_BRA, .parser = parse_one_param},
@@ -1197,7 +1237,7 @@ static int emit_hexfile(void)
 	if ((outf = fopen(output_file, "w")) == NULL)
 		return (0);
 
-	fprintf(outf, "# %s file\n", input_file);
+	fprintf(outf, "// %s file\n", input_file);
 
 	il_size = array_size(&insn_out);
 	for (size_t i = 0; i < il_size; i++)

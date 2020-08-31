@@ -226,6 +226,23 @@ module decode
 				else
 					insntype_o = `INSN_AMI_REGIMM;
 			end
+			/*
+			 * MOVHI and MOVLI, an unfortunatell exception on AMI insns:
+			 *
+			 * Instead of having 5-bit immediate values, MOVHI/LO
+			 * have 8-bit immediate values, which 'breaks' the
+			 * encoding. Anyway, for all intents and purposes, they
+			 * will still be considered as 'AMI' instructions.
+			 */
+			`TANGLE_OPCODE_MOVHI,
+			`TANGLE_OPCODE_MOVLO:
+			begin
+				aluen_o    = 1'b1;
+				aluop_o    = insn_i[14:11];
+				regwe_o    = 1'b1;
+				imm_o      = {8'h0, insn_i[7:0]}; //Unsigned immediate
+				insntype_o = `INSN_AMI_REGIMM;
+			end
 
 			/* Conditional jumps. */
 			`TANGLE_OPCODE_JE: begin
