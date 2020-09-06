@@ -107,7 +107,7 @@ module testbench_soc;
 		#5 clk_i = !clk_i;
 
 	initial
-		#3000 $finish;
+		#3500 $finish;
 
 endmodule
 `endif

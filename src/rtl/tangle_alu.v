@@ -40,17 +40,23 @@ module alu
 		input      [15:0] data1_i,
 		input      [15:0] data2_i,
 		input alu_en,
+		input wr_shift,
 		output reg [15:0] data_o,
 		output reg zf_o,           /* Zero flag.     */
 		output reg sf_o,           /* Signal flag.   */
 		output reg cf_o,           /* Carry flag.    */
-		output reg of_o            /* Overflow flag. */
+		output reg of_o,           /* Overflow flag. */
+		output busy_o              /* ALU is computing a shift. */
 	);
 
+	reg [15:0] shift_out;
+	reg  [3:0] shifts = 4'b0;
 	reg zf_next;
 	reg sf_next;
 	reg cf_next;
 	reg of_next;
+
+	assign busy_o = (shifts != 0);
 
 	always @(posedge clk_i, `RESET_EDGE rst_i)
 	begin
@@ -124,9 +130,62 @@ module alu
 				`MOVLO: begin
 					data_o = data1_i | data2_i;
 				end
+				`SLL: begin
+					data_o = shift_out;
+				end
+				`SLR: begin
+					data_o = shift_out;
+				end
 			endcase
 		end
 	end
+
+	/*
+	 * Delayed shifts.
+	 *
+	 * This implementation is quite based on the femtorv32 approach:
+	 * shifting 4-bits per time and 1, when there is no enough space.
+	 *
+	 * It should be noted that this implementation uses only 27 LUTs
+	 * (114 vs 141) less than the 'default' (data1_i << data2_i[3:0]).
+	 * However, this approach does not 'hurt' the maximum clock, on
+	 * the contrary, the maximum clock slightly increases (from
+	 * 31.298 to 32.921 MHz), so I will stay with this approach.
+	 *
+	 * The amount of cycles spent here would be:
+	 *   AMI INSN Cyc (3 Cyc ATM) + shift_amt/4 + shift_amt%4
+	 *
+	 * so, it would spend from 3 cycles (0 bit shift) to at most
+	 * (for 15 bits) 9 cycles to complete.
+	 */
+	always @(posedge clk_i)
+	begin
+		if (wr_shift) begin
+			case (op_i)
+				`SLL, `SLR: begin
+					shift_out <= data1_i;
+					shifts    <= data2_i[3:0];
+				end
+			endcase
+		end else begin
+			if (shifts >= 4'd4) begin
+				shifts <= shifts - 4'd4;
+				case (op_i)
+					`SLL: shift_out <= shift_out << 4;
+					`SLR: shift_out <= shift_out >> 4;
+				endcase
+			end else begin
+				if (shifts != 4'd0) begin
+					shifts <= shifts - 4'd1;
+					case (op_i)
+						`SLL: shift_out <= shift_out << 1;
+						`SLR: shift_out <= shift_out >> 1;
+					endcase
+				end
+			end
+		end
+	end
+
 endmodule
 
 
@@ -136,6 +195,7 @@ module testbench_alu;
 	reg clk_i;
 	reg rst_i;
 	reg alu_en;
+	reg wr_shift;
 	reg   [3:0] op_i;
 	reg  [15:0] data1_i;
 	reg  [15:0] data2_i;
@@ -144,6 +204,7 @@ module testbench_alu;
 	wire sf_o;
 	wire cf_o;
 	wire of_o;
+	wire alu_busy_o;
 
 	initial  begin
 		$dumpfile("alu.vcd");
@@ -157,11 +218,13 @@ module testbench_alu;
 		.data1_i(data1_i),
 		.data2_i(data2_i),
 		.alu_en(alu_en),
+		.wr_shift(wr_shift),
 		.data_o(data_o),
 		.zf_o(zf_o),
 		.sf_o(sf_o),
 		.cf_o(cf_o),
-		.of_o(of_o)
+		.of_o(of_o),
+		.busy_o(alu_busy_o)
 	);
 
 	initial begin
@@ -172,7 +235,8 @@ module testbench_alu;
 		);
 
 		op_i = 4'h0;
-		data1_i = 16'h0; data2_i = 16'h0; rst_i = 1'b1; clk_i = 1'b0; alu_en = 1'b1;
+		data1_i  = 16'h0; data2_i = 16'h0; rst_i = 1'b1; clk_i = 1'b0; alu_en = 1'b1;
+		wr_shift = 1'b1;
 
 		#5 op_i = `OR; data1_i = 16'd15; data2_i = 16'd25; rst_i = 1'b0; /* OR. */
 		#5 op_i = `AND; /* AND. */

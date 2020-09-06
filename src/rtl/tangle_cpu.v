@@ -70,14 +70,17 @@ module cpu
 	wire [15:0] alu_out;
 	wire [15:0] alu_data1;
 	wire [15:0] alu_data2;
+	wire alu_busy;
 
 	// Alu enable
 	wire alu_en = (aluen_o && (state == `STATE_INSN_FETCH
-		|| state == `STATE_EXECUTE));
+		|| state == `STATE_EXECUTE
+		|| state == `STATE_WAIT_ALU));
 
 	// Reg write-enable
 	wire reg_we =
 		(state == `STATE_EXECUTE ? regwe_o :
+		 state == `STATE_WAIT_ALU ? regwe_o :
 		 state == `STATE_WRITEBACK && insntype_o == `INSN_MEM_LW ? regwe_o :
 		 1'b0);
 
@@ -133,11 +136,13 @@ module cpu
 		.data1_i(alu_data1),
 		.data2_i(alu_data2),
 		.alu_en(alu_en),
+		.wr_shift(state == `STATE_INSN_FETCH),
 		.data_o(alu_out),
 		.zf_o(zf_o),
 		.sf_o(sf_o),
 		.cf_o(cf_o),
-		.of_o(of_o)
+		.of_o(of_o),
+		.busy_o(alu_busy)
 	);
 
 	/* Some inputs. */
@@ -225,8 +230,12 @@ module cpu
 
 						/* If normal execution, go to writeback. */
 						default: begin
-							pc    <= PCplus2;
-							state <= `STATE_WRITEBACK;
+							if (alu_busy != 1'b1) begin
+								pc    <= PCplus2;
+								state <= `STATE_WRITEBACK;
+							end else begin
+								state <= `STATE_WAIT_ALU;
+							end
 						end
 					endcase
 
@@ -261,6 +270,14 @@ module cpu
 				`STATE_WAIT_MEM: begin
 					next_insn <= mem_data_o;
 					state     <= `STATE_WRITEBACK;
+				end
+
+				/* ALU, wait for shifts. */
+				`STATE_WAIT_ALU: begin
+					if (alu_busy != 1'b1) begin
+						pc    <= PCplus2;
+						state <= `STATE_WRITEBACK;
+					end
 				end
 
 				/* Write-back. */

@@ -141,4 +141,5 @@
 `define STATE_INSN_FETCH 3'd2
 `define STATE_EXECUTE    3'd3
 `define STATE_WAIT_MEM   3'd4
-`define STATE_WRITEBACK  3'd5
+`define STATE_WAIT_ALU   3'd5
+`define STATE_WRITEBACK  3'd6
